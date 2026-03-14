@@ -1,9 +1,11 @@
 #!/usr/bin/python
+import datetime
 import os
 import shutil
 import subprocess
 import sys
 import time
+import traceback
 from typing import TypeAlias, AnyStr, Literal
 
 FilePath: TypeAlias = AnyStr | os.PathLike[AnyStr]
@@ -58,8 +60,18 @@ def read_packages(path: FilePath, modification_type: PackageModifyType) -> list[
     return packages
 
 
-def _1_remove_default_packages(system_packages: list[str], flatpaks: list[str]):
+def _1_remove_default_packages(context):
     print("Removing default packages.")
+
+    system_packages = read_packages(
+        os.path.join(context["run_directory"], "pkgs"),
+        "-"
+    )
+
+    flatpaks = read_packages(
+        os.path.join(context["run_directory"], "flatpaks"),
+        "-"
+    )
 
     if len(system_packages) > 0:
         sudo("dnf", "rm", "--assumeyes", *system_packages)
@@ -68,13 +80,28 @@ def _1_remove_default_packages(system_packages: list[str], flatpaks: list[str]):
         run("flatpak", "uninstall", "--assumeyes", *flatpaks)
 
 
-def _2_upgrade_system():
+def _2_upgrade_system(context):
     print("Upgrading system.")
     sudo("dnf", "upgrade", "--assumeyes")
+    print("+----------------------------+")
+    print("| Please reboot your system. |")
+    print("+----------------------------+")
+
+    return True
 
 
-def _3_install_packages(system_packages: list[str], flatpaks: list[str]):
+def _3_install_packages(context):
     print("Installing packages.")
+
+    system_packages = read_packages(
+        os.path.join(context["run_directory"], "pkgs"),
+        "+"
+    )
+
+    flatpaks = read_packages(
+        os.path.join(context["run_directory"], "flatpaks"),
+        "+"
+    )
 
     if len(system_packages) > 0:
         sudo("dnf", "install", "--assumeyes", *system_packages)
@@ -83,7 +110,7 @@ def _3_install_packages(system_packages: list[str], flatpaks: list[str]):
         run("flatpak", "install", "--assumeyes", *flatpaks)
 
 
-def _4_mount_umf():
+def _4_mount_umf(context):
     try:
         subprocess.run(["df", "/run/media/ellie/umf"], check=True, capture_output=True)
         # If this runs successfully then the drive is already mounted
@@ -101,65 +128,63 @@ def _4_mount_umf():
     sudo("systemctl", "daemon-reload")
 
 
-def _5_import_secrets():
+def _5_import_secrets(context):
     print("Importing Secrets.")
 
 
 if __name__ == "__main__":
-    LAST_STEP_LABEL = "5"
+    if sys.version_info < (3, 14):
+        print("Python 3.14 required.")
+        exit()
 
     configure_sudo_askpass()
 
+    STEPS = [
+        ("uninstall packages", _1_remove_default_packages),
+        ("upgrade system", _2_upgrade_system),
+        ("install packages", _3_install_packages),
+        ("mount user made files", _4_mount_umf),
+        ("import secrets", _5_import_secrets),
+    ]
+    STEPS_BY_KEY = dict(STEPS)
+    STEP_INDEX_BY_KEY = dict((step[0], index) for index, step in enumerate(STEPS))
+
+    run_directory = os.path.dirname(sys.argv[0])
+    progress_file = f"{run_directory}/progress"
+
     progress = None
-
-    tool_folder = os.path.dirname(sys.argv[0])
-    progress_file = f"{tool_folder}/progress"
-
     if os.path.exists(progress_file):
-        print("Progress file found!")
-
         with open(progress_file, "r") as f:
             progress = f.readline().strip()
-            save_time = int(f.readline().strip())
+            save_time = datetime.datetime.fromtimestamp(int(f.readline().strip()))
+        
+    step_index = 0
+    if progress is not None:
+        step_index = STEP_INDEX_BY_KEY[progress] + 1
 
-    if progress == LAST_STEP_LABEL:
-        print(f"This system appears to already have been set up on {save_time}...")
+    if step_index == len(STEPS):
+        print(f"This system appears to already have been set up on {save_time:%c}...")
         print("Would you like to repeat the setup? (y/n)")
         response = input("> ")
 
         if response == "y":
-            progress = None
-            save_time = 0
+            step_index = 0
         else:
             print("See you later!")
             exit()
 
-    if not progress:
-        packages_to_remove = read_packages(f"{tool_folder}/pkgs", "-")
-        flatpaks_to_remove = read_packages(f"{tool_folder}/flatpaks", "-")
+    step_context = {
+        "run_directory": run_directory,
+        "drive_root": os.path.dirname(run_directory)
+    }
 
-        _1_remove_default_packages(packages_to_remove, flatpaks_to_remove)
-        progress, save_time = save_progress(progress_file, "1")
+    for (step_name, step_fun) in STEPS[step_index:]:
+        try:
+            result = step_fun(step_context) # Kind of ugly
+            save_progress(progress_file, step_name)
 
-    if progress == "1":
-        _2_upgrade_system()
-        progress, save_time = save_progress(progress_file, "2")
-        print("+----------------------------+")
-        print("| Please reboot your system. |")
-        print("+----------------------------+")
-        exit()
-
-    if progress == "2":
-        packages_to_add = read_packages(f"{tool_folder}/pkgs", "+")
-        flatpaks_to_add = read_packages(f"{tool_folder}/flatpaks", "+")
-
-        _3_install_packages(packages_to_add, flatpaks_to_add)
-        progress, save_time = save_progress(progress_file, "3")
-
-    if progress == "3":
-        _4_mount_umf()
-        progress, save_time = save_progress(progress_file, "4")
-
-    if progress == "4":
-        _5_import_secrets()
-        progress, save_time = save_progress(progress_file, "5")
+            if result:
+                exit(0)
+        except Exception as e:
+            print(f"Failed to execute step {step_index + 1}:")
+            traceback.print_exception(e)        
