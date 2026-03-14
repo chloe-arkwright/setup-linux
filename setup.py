@@ -88,8 +88,12 @@ if __name__ == "__main__":
     ask_pass = get_askpass_path(askpass_programs)
 
     if not ask_pass:
-        print("Cannot configure a graphical password prompt for sudo, please install one of:")
-        print(f"  {" ".join(askpass_programs)}")
+        print(
+            "Cannot configure a graphical password prompt for sudo, please install one of:",
+            f"  {" ".join(askpass_programs)}",
+            sep = "\n"
+        )
+
         exit(1)
 
     app = Application(
@@ -108,8 +112,11 @@ if __name__ == "__main__":
         exit(1)
 
     if step_index == len(steps):
-        print(f"This system appears to have been set up already on {save_time:%c}...")
-        print("Would you like to repeat the setup? (y/n)")
+        print(
+            f"This system appears to have been set up already on {save_time:%c}...",
+            "Would you like to repeat the setup? (y/n)",
+            sep = "\n"
+        )
         response = input("> ")
 
         if response == "y":

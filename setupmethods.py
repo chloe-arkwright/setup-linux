@@ -20,9 +20,12 @@ def _1_remove_default_packages(app: Application, **kwargs):
 def _2_upgrade_system(app: Application, **kwargs):
     print("Upgrading system.")
     app.sudo("dnf", "upgrade", "--assumeyes")
-    print("+----------------------------+")
-    print("| Please reboot your system. |")
-    print("+----------------------------+")
+    print(
+        "+----------------------------+",
+        "| Please reboot your system. |",
+        "+----------------------------+",
+        sep = "\n"
+    )
 
     return True
 
