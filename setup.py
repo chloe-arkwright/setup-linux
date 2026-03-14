@@ -168,7 +168,7 @@ if __name__ == "__main__":
         with open(progress_file, "r") as f:
             progress = f.readline().strip()
             save_time = datetime.datetime.fromtimestamp(int(f.readline().strip()))
-        
+
     step_index = 0
     if progress is not None:
         step_index = STEP_INDEX_BY_KEY[progress] + 1
@@ -191,11 +191,11 @@ if __name__ == "__main__":
 
     for (step_name, step_fun) in STEPS[step_index:]:
         try:
-            result = step_fun(step_context) # Kind of ugly
+            result = step_fun(step_context)
             save_progress(progress_file, step_name)
 
-            if result:
+            if result:  # Kind of ugly
                 exit(0)
         except Exception as e:
             print(f"Failed to execute step {step_index + 1}:")
-            traceback.print_exception(e)        
+            traceback.print_exception(e)
