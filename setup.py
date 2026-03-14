@@ -130,6 +130,17 @@ def _4_mount_umf(context):
 
 def _5_import_secrets(context):
     print("Importing Secrets.")
+    # if [ ! -d ~/.gradle ]; then
+    #     mkdir ~/.gradle
+    # fi
+
+    # cp ./home/.gradle/* ~/.gradle/
+
+    # if [ ! -d ~/.ssh ]; then
+    #     mkdir ~/.ssh
+    # fi
+
+    # cp ./secrets/ssh/* ~/.ssh/
 
 
 if __name__ == "__main__":
