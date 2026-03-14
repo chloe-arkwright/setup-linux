@@ -1,52 +1,70 @@
 #!/usr/bin/python
-import datetime
-import os
-import shutil
-import subprocess
-import sys
-import time
-import traceback
-from typing import TypeAlias, AnyStr, Literal
+import os, shutil, subprocess, sys, time, traceback
+from enum import StrEnum
+from datetime import datetime
+from typing import TypeAlias, AnyStr, Callable
+
+import setupmethods
 
 FilePath: TypeAlias = AnyStr | os.PathLike[AnyStr]
-PackageModifyType: TypeAlias = Literal["+"] | Literal["-"]
+SetupMethod: TypeAlias = Callable[[FilePath], bool | None]
+
+class PackageModifyType(StrEnum):
+    REMOVE = "-"
+    ADD = "+"
 
 
-def configure_sudo_askpass():
-    askpass_programs = [
-        "ksshaskpass",
-        "ssh-askpass",
-        "gnome-ssh-askpass",
-    ]
+class Application:
+    def __init__(self, root_path: FilePath, ask_pass_path: FilePath):
+        self.root_path = root_path
+        self.env = os.environ.copy()
+        self.env["SUDO_ASKPASS"] = ask_pass_path
 
-    for program in askpass_programs:
+    def path(self, sub_path: FilePath) -> FilePath:
+        return os.path.join(self.root_path, sub_path)
+
+    # noinspection PyMethodMayBeStatic
+    def run(self, *cmd: str) -> None:
+        subprocess.run(cmd)
+
+    def sudo(self, *cmd: str) -> None:
+        subprocess.run(("sudo", "-A") + cmd, env=self.env)
+
+
+def get_askpass_path(programs: list[str]) -> FilePath | None:
+    for program in programs:
         # noinspection PyDeprecation
         if program_path := shutil.which(program):
-            os.environ["SUDO_ASKPASS"] = program_path
-            break
+            return program_path
 
-    if "SUDO_ASKPASS" not in os.environ:
-        print("Cannot configure a graphical password prompt for sudo, please install one of:")
-        print(f"  {" ".join(askpass_programs)}")
-        exit(1)
+    return None
 
 
-def run(*cmd: str) -> None:
-    subprocess.run(cmd)
+def get_current_progress(progress_file: FilePath, steps: list[tuple[str, SetupMethod]]) -> tuple[int, datetime | None]:
+    progress = None
+    save_time = None
+
+    if os.path.exists(progress_file):
+        with open(progress_file, "r") as file:
+            progress = file.readline().strip()
+            save_time = datetime.fromtimestamp(int(file.readline().strip()))
+
+    if progress is not None:
+        for (index, (name, _)) in enumerate(steps):
+            if name == progress:
+                return index + 1, save_time
+        
+        raise KeyError(f"Unknown step: {progress}, bad user config.")
+    
+    return 0, None
 
 
-def sudo(*cmd: str) -> None:
-    subprocess.run(("sudo", "-A") + cmd, env=os.environ)
-
-
-def save_progress(path: FilePath, progress: str) -> tuple[str, int]:
+def save_progress(path: FilePath, progress: str):
     save_time = int(time.time())
 
     with open(path, "w") as file:
         file.write(f"{progress}\n")
         file.write(f"{save_time}\n")
-
-    return progress, save_time
 
 
 def read_packages(path: FilePath, modification_type: PackageModifyType) -> list[str]:
@@ -60,121 +78,37 @@ def read_packages(path: FilePath, modification_type: PackageModifyType) -> list[
     return packages
 
 
-def _1_remove_default_packages(context):
-    print("Removing default packages.")
-
-    system_packages = read_packages(
-        os.path.join(context["run_directory"], "pkgs"),
-        "-"
-    )
-
-    flatpaks = read_packages(
-        os.path.join(context["run_directory"], "flatpaks"),
-        "-"
-    )
-
-    if len(system_packages) > 0:
-        sudo("dnf", "rm", "--assumeyes", *system_packages)
-
-    if len(flatpaks) > 0:
-        run("flatpak", "uninstall", "--assumeyes", *flatpaks)
-
-
-def _2_upgrade_system(context):
-    print("Upgrading system.")
-    sudo("dnf", "upgrade", "--assumeyes")
-    print("+----------------------------+")
-    print("| Please reboot your system. |")
-    print("+----------------------------+")
-
-    return True
-
-
-def _3_install_packages(context):
-    print("Installing packages.")
-
-    system_packages = read_packages(
-        os.path.join(context["run_directory"], "pkgs"),
-        "+"
-    )
-
-    flatpaks = read_packages(
-        os.path.join(context["run_directory"], "flatpaks"),
-        "+"
-    )
-
-    if len(system_packages) > 0:
-        sudo("dnf", "install", "--assumeyes", *system_packages)
-
-    if len(flatpaks) > 0:
-        run("flatpak", "install", "--assumeyes", *flatpaks)
-
-
-def _4_mount_umf(context):
-    try:
-        subprocess.run(["df", "/run/media/ellie/umf"], check=True, capture_output=True)
-        # If this runs successfully then the drive is already mounted
-        return
-    except subprocess.CalledProcessError:
-        pass
-
-    print("Mounting User Made Files.")
-
-    os.mkdir("/run/media/ellie/umf/")
-
-    with open("/etc/fstab", "a+") as file:
-        file.write("UUID=caee500c-1571-444f-bddc-139980822896 /run/media/ellie/umf ext4 defaults 0 0\n")
-
-    sudo("systemctl", "daemon-reload")
-
-
-def _5_import_secrets(context):
-    print("Importing Secrets.")
-    # if [ ! -d ~/.gradle ]; then
-    #     mkdir ~/.gradle
-    # fi
-
-    # cp ./home/.gradle/* ~/.gradle/
-
-    # if [ ! -d ~/.ssh ]; then
-    #     mkdir ~/.ssh
-    # fi
-
-    # cp ./secrets/ssh/* ~/.ssh/
-
-
 if __name__ == "__main__":
     if sys.version_info < (3, 14):
         print("Python 3.14 required.")
-        exit()
+        exit(1)
 
-    configure_sudo_askpass()
+    askpass_programs = [ "ksshaskpass", "ssh-askpass", "gnome-ssh-askpass" ]
 
-    STEPS = [
-        ("uninstall packages", _1_remove_default_packages),
-        ("upgrade system", _2_upgrade_system),
-        ("install packages", _3_install_packages),
-        ("mount user made files", _4_mount_umf),
-        ("import secrets", _5_import_secrets),
-    ]
-    STEPS_BY_KEY = dict(STEPS)
-    STEP_INDEX_BY_KEY = dict((step[0], index) for index, step in enumerate(STEPS))
+    ask_pass = get_askpass_path(askpass_programs)
 
-    run_directory = os.path.dirname(sys.argv[0])
-    progress_file = f"{run_directory}/progress"
+    if not ask_pass:
+        print("Cannot configure a graphical password prompt for sudo, please install one of:")
+        print(f"  {" ".join(askpass_programs)}")
+        exit(1)
 
-    progress = None
-    if os.path.exists(progress_file):
-        with open(progress_file, "r") as f:
-            progress = f.readline().strip()
-            save_time = datetime.datetime.fromtimestamp(int(f.readline().strip()))
+    app = Application(
+        root_path = os.path.join(os.path.dirname(sys.argv[0]), "config"),
+        ask_pass_path= ask_pass
+    )
 
-    step_index = 0
-    if progress is not None:
-        step_index = STEP_INDEX_BY_KEY[progress] + 1
+    progress_file = app.path("progress")
+    steps = setupmethods.steps
 
-    if step_index == len(STEPS):
-        print(f"This system appears to already have been set up on {save_time:%c}...")
+    try:
+        (step_index, save_time) = get_current_progress(progress_file, steps)
+    except KeyError as error:
+        print(f"Failed to load the progress file.")
+        traceback.print_exception(error)
+        exit(1)
+
+    if step_index == len(steps):
+        print(f"This system appears to have been set up already on {save_time:%c}...")
         print("Would you like to repeat the setup? (y/n)")
         response = input("> ")
 
@@ -182,20 +116,16 @@ if __name__ == "__main__":
             step_index = 0
         else:
             print("See you later!")
-            exit()
+            exit(0)
 
-    step_context = {
-        "run_directory": run_directory,
-        "drive_root": os.path.dirname(run_directory)
-    }
-
-    for (step_name, step_fun) in STEPS[step_index:]:
+    for (step_name, setup_method) in steps[step_index:]:
         try:
-            result = step_fun(step_context)
+            result = setup_method(app)
+
             save_progress(progress_file, step_name)
 
             if result:  # Kind of ugly
                 exit(0)
-        except Exception as e:
+        except Exception as error:
             print(f"Failed to execute step {step_index + 1}:")
-            traceback.print_exception(e)
+            traceback.print_exception(error)
