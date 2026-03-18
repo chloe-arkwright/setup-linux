@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 import setupmethods
 
-FilePath: TypeAlias = str | os.PathLike[str]
+FilePath: TypeAlias = str
 
 class PackageModifyType(StrEnum):
     REMOVE = "-"
@@ -18,18 +18,33 @@ class Application:
     def __init__(self, config_root: FilePath, ask_pass_path: FilePath):
         self.config_root = config_root
         self.env = os.environ.copy()
-        self.env["SUDO_ASKPASS"] = str(ask_pass_path)
+        self.env['SUDO_ASKPASS'] = str(ask_pass_path)
+        self.home = self.env['HOME']
 
     def path(self, sub_path: FilePath) -> FilePath:
         return os.path.realpath(os.path.join(self.config_root, sub_path))
     
-    def create_secret_link(self, folder: str, relative_path: str) -> None:
-        target = f"{self.env['HOME']}/.{folder}/{relative_path}"
-        if not os.path.exists(target):
+    def home_path(self, sub_path: FilePath) -> FilePath:
+        return os.path.join(self.home, sub_path)
+    
+    def data_path(self, sub_path): 
+        return app.path(f"data/{sub_path}")
+    
+    def create_link(self, source: FilePath, destination: FilePath):
+        if not (os.path.exists(destination) or os.path.lexists(destination)):
             os.symlink(
-                src = app.path(f"data/secrets/{folder}/{relative_path}"),
-                dst = target
+                src = source,
+                dst = destination
             )
+
+    def create_secret_link(self, folder: str, relative_path: str) -> None:
+        self.create_link(
+            app.data_path(f"secrets/{folder}/{relative_path}"),
+            self.home_path(f".{folder}/{relative_path}")
+        )
+
+    def run_with_output(self, *cmd: str) -> bytes:
+        return subprocess.check_output(cmd)
 
     # noinspection PyMethodMayBeStatic
     def run(self, *cmd: str) -> None:
