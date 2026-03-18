@@ -24,7 +24,7 @@ def _2_upgrade_system(app: Application, **kwargs):
         "+----------------------------+",
         "| Please reboot your system. |",
         "+----------------------------+",
-        sep = "\n"
+        sep="\n"
     )
 
     return True
@@ -45,7 +45,11 @@ def _3_install_packages(app: Application, **kwargs):
 
 def _4_mount_umf(app: Application, **kwargs):
     try:
-        subprocess.run(["df", "/run/media/ellie/umf"], check=True, capture_output=True)
+        subprocess.run(
+            ["df", "/run/media/ellie/umf"],
+            check=True,
+            capture_output=True
+        )
         # If this runs successfully then the drive is already mounted
         return
     except subprocess.CalledProcessError:
@@ -66,6 +70,7 @@ def _5_import_ssh_key(app: Application, name: str):
     os.chmod(app.data_path(f"secrets/ssh/{name}"), 0o700)
     app.create_secret_link("ssh", f"{name}.pub")
 
+
 def _5_import_secrets(app: Application, **kwargs):
     print("Importing Secrets.")
 
@@ -73,10 +78,10 @@ def _5_import_secrets(app: Application, **kwargs):
         os.makedirs("~/.gradle")
 
     app.create_secret_link("gradle", "gradle.properties")
-    
+
     if not os.path.exists("~/.ssh"):
         os.makedirs("~/.ssh")
-    
+
     _5_import_ssh_key(app, "chloe-arkwright_id_ed25519")
     _5_import_ssh_key(app, "ellie-mcquinn_id_ed25519")
 
@@ -94,10 +99,10 @@ def _6_link_home(app: Application, **kwargs):
         app.data_path("home/ellie/.gitconfig"),
         app.home_path(".gitconfig")
     )
-    
+
     templates_dir = app.run_with_output("xdg-user-dir", "TEMPLATES").strip().decode('utf-8')
     templates_data_dir = app.data_path("home/public/Templates/entries")
-    
+
     for _, _, files in os.walk(templates_data_dir):
         for file in files:
             app.create_link(
