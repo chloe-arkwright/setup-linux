@@ -63,17 +63,29 @@ def _4_mount_umf(app: Application, **kwargs):
 
 def _5_import_secrets(app: Application, **kwargs):
     print("Importing Secrets.")
-    # if [ ! -d ~/.gradle ]; then
-    #     mkdir ~/.gradle
-    # fi
 
-    # cp ./home/.gradle/* ~/.gradle/
+    if not os.path.exists("~/.gradle"):
+        os.makedirs("~/.gradle")
 
-    # if [ ! -d ~/.ssh ]; then
-    #     mkdir ~/.ssh
-    # fi
+    app.create_secret_link("gradle", "gradle.properties")
+    
+    if not os.path.exists("~/.ssh"):
+        os.makedirs("~/.ssh")
+    
+    app.create_secret_link("ssh", "chloe-arkwright_id_ed25519")
+    os.chmod(app.path("data/secrets/ssh/chloe-arkwright_id_ed25519"), 0o700)
+    app.create_secret_link("ssh", "chloe-arkwright_id_ed25519.pub")
+    app.create_secret_link("ssh", "ellie-mcquinn_id_ed25519")
+    os.chmod(app.path("data/secrets/ssh/ellie-mcquinn_id_ed25519"), 0o700)
+    app.create_secret_link("ssh", "ellie-mcquinn_id_ed25519.pub")
 
-    # cp ./secrets/ssh/* ~/.ssh/
+    app.run("gpg", "--import", app.path("data/secrets/gpg/26-03-13 chloe.gpg"))
+    app.run("gpg", "--import", app.path("data/secrets/gpg/26-03-13 ellie.gpg"))
+
+
+def _6_link_home(app: Application, **kwargs):
+    pass
+
 
 steps: list[tuple[str, SetupMethod]] = [
     ("uninstall packages", _1_remove_default_packages),
@@ -81,4 +93,5 @@ steps: list[tuple[str, SetupMethod]] = [
     ("install packages", _3_install_packages),
     ("mount user made files", _4_mount_umf),
     ("import secrets", _5_import_secrets),
+    # ("link home", _6_link_home)
 ]

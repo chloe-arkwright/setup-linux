@@ -2,12 +2,12 @@
 import os, shutil, subprocess, sys, time, traceback
 from enum import StrEnum
 from datetime import datetime
-from typing import TypeAlias, AnyStr, Callable
+from typing import TypeAlias
+from collections.abc import Callable
 
 import setupmethods
 
-FilePath: TypeAlias = AnyStr | os.PathLike[AnyStr]
-SetupMethod: TypeAlias = Callable[[FilePath], bool | None]
+FilePath: TypeAlias = str | os.PathLike[str]
 
 class PackageModifyType(StrEnum):
     REMOVE = "-"
@@ -15,20 +15,31 @@ class PackageModifyType(StrEnum):
 
 
 class Application:
-    def __init__(self, root_path: FilePath, ask_pass_path: FilePath):
-        self.root_path = root_path
+    def __init__(self, config_root: FilePath, ask_pass_path: FilePath):
+        self.config_root = config_root
         self.env = os.environ.copy()
-        self.env["SUDO_ASKPASS"] = ask_pass_path
+        self.env["SUDO_ASKPASS"] = str(ask_pass_path)
 
     def path(self, sub_path: FilePath) -> FilePath:
-        return os.path.join(self.root_path, sub_path)
+        return os.path.realpath(os.path.join(self.config_root, sub_path))
+    
+    def create_secret_link(self, folder: str, relative_path: str) -> None:
+        target = f"{self.env['HOME']}/.{folder}/{relative_path}"
+        if not os.path.exists(target):
+            os.symlink(
+                src = app.path(f"data/secrets/{folder}/{relative_path}"),
+                dst = target
+            )
 
     # noinspection PyMethodMayBeStatic
     def run(self, *cmd: str) -> None:
         subprocess.run(cmd)
 
     def sudo(self, *cmd: str) -> None:
-        subprocess.run(("sudo", "-A") + cmd, env=self.env)
+        subprocess.run(("sudo", "-A") + cmd, env = self.env)
+
+
+SetupMethod: TypeAlias = Callable[[Application], bool | None]
 
 
 def get_askpass_path(programs: list[str]) -> FilePath | None:
@@ -97,8 +108,8 @@ if __name__ == "__main__":
         exit(1)
 
     app = Application(
-        root_path = os.path.join(os.path.dirname(sys.argv[0]), "config"),
-        ask_pass_path= ask_pass
+        config_root = os.path.join(os.path.dirname(sys.argv[0]), "config"),
+        ask_pass_path = ask_pass
     )
 
     progress_file = app.path("progress")
