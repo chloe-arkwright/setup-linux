@@ -85,8 +85,8 @@ def _5_import_secrets(app: Application, **kwargs):
     _5_import_ssh_key(app, "chloe-arkwright_id_ed25519")
     _5_import_ssh_key(app, "ellie-mcquinn_id_ed25519")
 
-    app.run("gpg", "--import", app.secrets_path("gpg/26-03-13 chloe.gpg"))
-    app.run("gpg", "--import", app.secrets_path("gpg/26-03-13 ellie.gpg"))
+    app.run("gpg", "--import", app.secrets_path("gpg/26-03-19 chloe.gpg"))
+    app.run("gpg", "--import", app.secrets_path("gpg/26-03-19 ellie.gpg"))
 
 
 def _6_link_home(app: Application, **kwargs):
