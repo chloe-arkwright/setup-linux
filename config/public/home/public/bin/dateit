@@ -44,21 +44,20 @@ def print_if(condition: bool, *args, **kwargs):
 
 def print_help():
     os.system("")  # Hack to enable coloured output on Windows.
-    print(
-        f"{TColors.BLUE}Usage:{TColors.RESET}",
-        f"  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FILES...)",
-         "",
-        f"{TColors.BLUE}Description:{TColors.RESET}",
-         "  By default, tries to guess the date the file was created and prepend it to the file name.",
-         "",
-        f"{TColors.BLUE}Options:{TColors.RESET}",
-         "  -h --help:      Output this help information",
-         "  -v --verbose:   Output extra information",
-         "  -o --overwrite: Overwrite existing files",
-         "  -d DATE:        A custom date to prepend",
-         "     --hidden:    Also prepend dates to hidden files",
-        sep="\n"
-    )
+    print(f"""
+{TColors.BLUE}Usage:{TColors.RESET}
+  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FILES...)
+
+{TColors.BLUE}Description:{TColors.RESET}
+  By default, tries to guess the date the file was created and prepend it to the file name.
+
+{TColors.BLUE}Options:{TColors.RESET}
+  -h, --help:     Output this help information
+  -v, --verbose:  Output extra information
+  -o --overwrite: Overwrite existing files
+  -d DATE:        A custom date to prepend
+     --hidden:    Also prepend dates to hidden files  
+""".strip())
     exit(0)
 
 
