@@ -6,69 +6,56 @@ import re
 import shutil
 import sys
 import time
-from enum import StrEnum
-from typing import Iterator
+
+from config import header, trim_margin, GenericConfig
 
 
-class Config:
-    verbose_output: bool = False
+class AppConfig(GenericConfig):
     overwrite_existing_files: bool = False
     custom_date: str | None = None
     include_hidden_files: bool = False
 
-    def __init__(self, options: Iterator[str]):
-        for option in options:
-            if option == "-h" or option == "--help":
-                print_help()
-            elif option == "-v" or option == "--verbose":
-                self.verbose_output = True
-            elif option == "-o" or option == "--overwrite":
-                self.overwrite_existing_files = True
-            elif option == "-d":
-                self.custom_date = next(options)
-            elif option == "--hidden":
-                self.include_hidden_files = True
-            else:
-                break
+    @classmethod
+    def print_help(cls):
+        os.system("")  # Hack to enable coloured output on Windows.
 
+        output = trim_margin(f"""
+        |{header('Usage:')}
+        |  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FILES...)
+        |
+        |{header('Description:')}
+        |  By default, tries to guess the date the file was created and prepend it to the file name.
+        |
+        |{header('Options:')}
+        |  -h, --help:     Output this help information
+        |  -v, --verbose:  Output extra information
+        |  -o, --overwrite: Overwrite existing files
+        |  -d DATE:        A custom date to prepend
+        |      --hidden:    Also prepend dates to hidden files
+        """)
 
-class TColors(StrEnum):
-    RESET = "\33[0m"
-    BLUE = "\33[34m"
+        print(output)
+        exit(0)
 
+    def parse_option(self, option: str) -> bool:
+        if option == "-o" or option == "--overwrite":
+            self.overwrite_existing_files = True
+        elif option == "-d":
+            self.custom_date = next(options)
+        elif option == "--hidden":
+            self.include_hidden_files = True
+        else: return False
 
-def print_if(condition: bool, *args, **kwargs):
-    if condition:
-        print(*args, **kwargs)
-
-
-def print_help():
-    os.system("")  # Hack to enable coloured output on Windows.
-    print(f"""
-{TColors.BLUE}Usage:{TColors.RESET}
-  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FILES...)
-
-{TColors.BLUE}Description:{TColors.RESET}
-  By default, tries to guess the date the file was created and prepend it to the file name.
-
-{TColors.BLUE}Options:{TColors.RESET}
-  -h, --help:     Output this help information
-  -v, --verbose:  Output extra information
-  -o --overwrite: Overwrite existing files
-  -d DATE:        A custom date to prepend
-     --hidden:    Also prepend dates to hidden files  
-""".strip())
-    exit(0)
+        return True
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
 
-    if len(args) == 0:
-        print_help()
+    if len(args) == 0: AppConfig.print_help()
 
     options = iter(args)
-    config = Config(options)
+    app = AppConfig(options)
     arguments = args[len(args) - len(list(options)) - 1:]
 
     if arguments[0] == "CWD":
@@ -79,21 +66,21 @@ if __name__ == "__main__":
     for file in path:
         file_name = os.path.basename(file)
 
-        if file_name.startswith(".") and not config.include_hidden_files:
-            print_if(config.verbose_output, f"Skipping {file_name}; file is hidden.")
+        if file_name.startswith(".") and not app.include_hidden_files:
+            app.log(f"Skipping {file_name}; file is hidden.")
             continue
 
         file_path = os.path.abspath(file)
 
         if not os.path.exists(file_path):
-            print_if(config.verbose_output, f"Skipping {file_name}; file not found")
+            app.log(f"Skipping {file_name}; file not found")
             continue
 
         if re.match(r"^\d{2}-\d{2}-\d{2} ", file_name):
-            print_if(config.verbose_output, f"Skipping {file_name}; date already found.")
+            app.log(f"Skipping {file_name}; date already found.")
             continue
 
-        prepend_string = config.custom_date
+        prepend_string = app.custom_date
 
         if prepend_string is None:
             result = os.stat(file_path)
@@ -104,13 +91,13 @@ if __name__ == "__main__":
         new_file_path = os.path.join(os.path.dirname(file_path), f"{prepend_string} {file_name}")
 
         if os.path.exists(new_file_path):
-            if not config.overwrite_existing_files:
-                print_if(config.verbose_output, f"Skipping {file_name}; renamed file already exists.")
+            if not app.overwrite_existing_files:
+                app.log(f"Skipping {file_name}; renamed file already exists.")
                 continue
 
             if os.path.isdir(new_file_path):
                 shutil.rmtree(new_file_path)
 
-        print_if(config.verbose_output, f"Renaming '{file_name}' to '{prepend_string} {file_name}'")
+        app.log(f"Renaming '{file_name}' to '{prepend_string} {file_name}'")
 
         os.replace(file_path, new_file_path)
