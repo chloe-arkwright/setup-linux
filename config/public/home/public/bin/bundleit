@@ -1,0 +1,62 @@
+#!/usr/bin/python
+# Author Quinn/Ellie Meadows
+# Created: 19-03-2026
+import os
+import subprocess
+import sys
+
+from config import trim_margin, header, GenericConfig
+
+
+class AppConfig(GenericConfig):
+    @classmethod
+    def print_help(cls):
+        os.system("")  # Hack to enable coloured output on Windows.
+
+        output = trim_margin(f"""
+        |{header('Usage:')}
+        |  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FOLDERS...)
+        |
+        |{header('Description:')}
+        |  Tries to create git repository bundles for all folders passed to it.
+        |
+        |{header('Options:')}
+        |  -h, --help:     Output this help information
+        |  -v, --verbose:  Output extra information
+        """)
+
+        print(output)
+        exit(0)
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+
+    if len(args) == 0: AppConfig.print_help()
+
+    options = iter(args)
+    app = AppConfig(options)
+    arguments = args[len(args) - len(list(options)) - 1:]
+
+    if arguments[0] == "CWD":
+        path = os.listdir(os.getcwd())
+    else:
+        path = arguments
+
+    for file in path:
+        file_name = os.path.basename(file)
+        file_path = os.path.abspath(file)
+
+        if not os.path.exists(file_path) or not os.path.isdir(file_path):
+            app.log(f"Skipping {file_name}; not found or not a directory")
+            continue
+
+        git_dir = subprocess.check_output(["git", "rev-parse", "--absolute-git-dir"], cwd=file_path, text=True, encoding='utf-8').strip()
+
+        if not os.path.samefile(git_dir, os.path.join(file_path, ".git")):
+            app.log(f"Skipping {file_name}; found a parent git repository")
+            app.log(f"  {file_path}")
+            app.log(f"  {git_dir}")
+            continue
+
+        subprocess.run(["git", "bundle", "create", os.path.join(os.getcwd(), f"{file_name}.bundle"), "--all"], cwd=file_path)
