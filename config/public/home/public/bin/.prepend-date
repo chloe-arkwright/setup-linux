@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# todo:
+#   Find a common parent directory to print paths relative to, can use realpath to turn relative paths into absolute paths.
+
+if [ -z ${1+x} ]; then
+    echo -e "\e[34mUsage:\e[0m"
+    echo "  $(basename "$0") [OPTIONS] FILES..."
+    echo ""
+    echo -e "\e[34mDescription:\e[0m"
+    echo "  By default, tries to guess the date the file was created and prepend it to the file name."
+    echo ""
+    echo -e "\e[34mOptions:\e[0m"
+    echo -e "  -v\t\tOutput extra information"
+    echo -e "  -o\t\tOverwrite existing files"
+    echo -e "  -d DATE\tA custom date to prepend"
+    echo -e "  -f\t\tPrepend a new date even if an existing date is found"
+
+    exit 0
+fi
+
+while true ; do
+    arg=$1
+
+    if [[ $arg == "-v" ]]; then
+        shift
+        verbose=1
+    elif [[ $arg == "-d" ]]; then
+        shift
+        custom_date=$1
+        prepend_date="$custom_date"
+        shift
+    elif [[ $arg == "-o" ]]; then
+        shift
+        overwrite=1
+    elif [[ $arg == "-f" ]]; then
+        shift
+        force=1
+    else
+        break
+    fi
+done
+
+if [ -z ${1+x} ]; then
+    echo "No files passed... Stopping..."
+fi
+
+for file in "$@"
+do
+    filename=$(basename "$file")
+
+    if [ ! -e "$file" ]; then
+        echo "Skipping $filename; not found."
+        continue
+    fi
+
+    if [[ $filename =~ ^[0-9]{2}-[0-9]{2}-[0-9]{2}' ' ]]; then
+        if [[ -z ${force+x} ]]; then
+            echo "Skipping $filename; it already is prepending with a date."
+            continue
+        fi
+    fi
+
+    if [[ -z ${custom_date+x} ]]; then
+        date_accessed=$(stat -c %X "$file")
+        date_modified=$(stat -c %Y "$file")
+        date_changed=$(stat -c %Z "$file")
+
+        minimum=$date_modified
+
+        if [ "$date_accessed" -lt "$minimum" ]; then
+            minimum=$date_accessed
+        fi
+
+        if [ "$date_changed" -lt "$minimum" ]; then
+            minimum=$date_changed
+        fi
+
+        prepend_date=$(date --date "@$minimum" '+%y-%m-%d')
+    fi
+
+    dirname=$(dirname "$file")
+    newfile="$dirname/$prepend_date $filename"
+
+    if [ -e "$newfile" ]; then
+        if [[ -z ${overwrite+x} ]]; then
+            echo "Skipping $filename as it would overwite $prepend_date $filename"
+            continue
+        fi
+    fi
+
+    if [[ -n ${verbose+x} ]]; then
+        echo "Moving $file to $newfile"
+    fi
+
+    mv "$file" "$newfile"
+done

@@ -1,0 +1,52 @@
+#!/bin/bash
+
+if [[ $1 == "--help" ]]; then
+    echo -e "\e[34mUsage:\e[0m"
+    echo "  $(basename "$0") [OPTIONS] FILES..."
+    echo ""
+    echo -e "\e[34mDescription:\e[0m"
+    echo "  "
+    echo ""
+    echo -e "\e[34mOptions:\e[0m"
+    echo -e "  -v\t\tOutput extra information"
+
+    exit 0
+fi
+
+while true ; do
+    arg=$1
+
+    if [[ $arg == "-v" ]]; then
+        shift
+        verbose=1
+    else
+        break
+    fi
+done
+
+return_path=$(pwd)
+
+shopt -s globstar
+for file in **
+do
+    filename=$(basename "$file")
+    filedir="$return_path/$file"
+
+    if [[ ! -d "$filedir" ]]; then
+        if [[ -n ${verbose+x} ]]; then
+            echo "Skipping $filename; not found or not a directory."
+        fi
+        continue
+    fi
+
+    cd "$filedir" || exit 1
+    git_dir=$(git rev-parse --absolute-git-dir 2> /dev/null)
+
+    if [[ ! $git_dir == "$filedir/.git" ]]; then
+        continue
+    fi
+
+    git bundle create "$return_path/$filename.bundle" --all 2> /dev/null
+done
+
+cd "$return_path" || exit 1

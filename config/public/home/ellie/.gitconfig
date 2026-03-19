@@ -1,0 +1,21 @@
+[init]
+    defaultBranch = main
+    defaultObjectFormat = sha1
+[core]
+    autocrlf = input
+    repositoryformatversion = 1
+    bare = false
+    filemode = true
+[safe]
+    directory = *
+[alias]
+    ellie = config --global --replace-all include.path "~/gitconfig/ellie.gitconfig"
+    chloe = config --global --replace-all include.path "~/gitconfig/chloe.gitconfig"
+    rewrite-author = !~/gitconfig/git-rewrite-author.sh
+[include]
+	path = ~/gitconfig/chloe.gitconfig
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true

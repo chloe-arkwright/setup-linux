@@ -1,0 +1,10 @@
+[user]
+    name = Chloe Arkwright
+    email = chloe@arkwright.app
+    signingkey = 29655A1B334A53F2388B67E69A4B13257EB6DCBE
+[commit]
+	gpgsign = true
+[tag]
+	gpgsign = true
+[core]
+    sshCommand = ssh -i ~/.ssh/chloe-arkwright_id_ed25519

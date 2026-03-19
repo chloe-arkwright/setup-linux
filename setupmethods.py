@@ -67,7 +67,7 @@ def _4_mount_umf(app: Application, **kwargs):
 
 def _5_import_ssh_key(app: Application, name: str):
     app.create_secret_link("ssh", name)
-    os.chmod(app.data_path(f"secrets/ssh/{name}"), 0o700)
+    os.chmod(app.secrets_path(f"ssh/{name}"), 0o700)
     app.create_secret_link("ssh", f"{name}.pub")
 
 
@@ -85,8 +85,8 @@ def _5_import_secrets(app: Application, **kwargs):
     _5_import_ssh_key(app, "chloe-arkwright_id_ed25519")
     _5_import_ssh_key(app, "ellie-mcquinn_id_ed25519")
 
-    app.run("gpg", "--import", app.data_path("secrets/gpg/26-03-13 chloe.gpg"))
-    app.run("gpg", "--import", app.data_path("secrets/gpg/26-03-13 ellie.gpg"))
+    app.run("gpg", "--import", app.secrets_path("gpg/26-03-13 chloe.gpg"))
+    app.run("gpg", "--import", app.secrets_path("gpg/26-03-13 ellie.gpg"))
 
 
 def _6_link_home(app: Application, **kwargs):
@@ -113,6 +113,8 @@ def _6_link_home(app: Application, **kwargs):
     bin_data_dir = app.data_path("home/public/bin")
     for _, _, files in os.walk(bin_data_dir):
         for file in files:
+            if os.path.basename(file).startswith("."):
+                continue
             app.create_link(
                 os.path.join(bin_data_dir, file),
                 os.path.join(app.home_path(".local/bin"), file)

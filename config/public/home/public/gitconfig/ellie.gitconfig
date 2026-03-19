@@ -1,0 +1,10 @@
+[user]
+    name = Ellie McQuinn
+    email = ellie@ellie.moi
+    signingkey = 5886A3C0134BF97FF5D5BB3E5BE00729D6FEBCA1
+[commit]
+	gpgsign = true
+[tag]
+	gpgsign = true
+[core]
+    sshCommand = ssh -i ~/.ssh/ellie-mcquinn_id_ed25519

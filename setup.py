@@ -34,7 +34,10 @@ class Application:
         return os.path.join(self.home, sub_path)
 
     def data_path(self, sub_path):
-        return app.path(f"data/{sub_path}")
+        return app.path(f"public/{sub_path}")
+
+    def secrets_path(self, sub_path):
+        return app.path(f"secrets/{sub_path}")
 
     def create_link(self, source: FilePath, destination: FilePath):
         if not (os.path.exists(destination) or os.path.lexists(destination)):
@@ -45,7 +48,7 @@ class Application:
 
     def create_secret_link(self, folder: str, relative_path: str) -> None:
         self.create_link(
-            app.data_path(f"secrets/{folder}/{relative_path}"),
+            app.secrets_path(f"{folder}/{relative_path}"),
             self.home_path(f".{folder}/{relative_path}")
         )
 

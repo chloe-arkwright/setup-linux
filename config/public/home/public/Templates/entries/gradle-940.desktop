@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Gradle 9.4.0 Project
+Comment=Create a new Gradle 9.4.0 project...
+Type=Link
+URL=/run/media/ellie/umf/files/repositories/chloe-desktop/setup-linux/config/data/home/ellie/Templates/gradle-940/
+Icon=folder-java
+# Can be used to hide entries.
+NoDisplay=false
