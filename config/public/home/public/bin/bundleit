@@ -11,22 +11,18 @@ from config import trim_margin, header, GenericConfig
 class AppConfig(GenericConfig):
     @classmethod
     def print_help(cls):
-        os.system("")  # Hack to enable coloured output on Windows.
-
         output = trim_margin(f"""
-        |{header('Usage:')}
-        |  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FOLDERS...)
-        |
-        |{header('Description:')}
-        |  Tries to create git repository bundles for all folders passed to it.
-        |
-        |{header('Options:')}
-        |  -h, --help:     Output this help information
-        |  -v, --verbose:  Output extra information
+            |{header('Usage:')}
+            |  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FOLDERS...)
+            |
+            |{header('Description:')}
+            |  Tries to create git repository bundles for all folders passed to it.
+            |
+            |{header('Options:')}
+            |  -h, --help:     Output this help information
+            |  -v, --verbose:  Output extra information
         """)
-
-        print(output)
-        exit(0)
+        GenericConfig._print_help(output)
 
 
 if __name__ == "__main__":

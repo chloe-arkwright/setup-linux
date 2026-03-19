@@ -5,7 +5,9 @@ __all__ = [
     "GenericConfig"
 ]
 
+import os
 import re
+from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Iterator
 
@@ -15,7 +17,7 @@ class TermColors(StrEnum):
     BLUE = "\33[34m"
 
 
-class GenericConfig:
+class GenericConfig(ABC):
     verbose_output: bool = False
 
     def __init__(self, options: Iterator[str]):
@@ -28,7 +30,14 @@ class GenericConfig:
                 continue
             else: break
 
+    @staticmethod
+    def _print_help(output: str):
+        os.system("")  # Hack to enable coloured output on Windows.
+        print(output)
+        exit(0)
+
     @classmethod
+    @abstractmethod
     def print_help(cls):
         pass
 

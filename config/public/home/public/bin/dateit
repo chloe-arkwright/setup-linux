@@ -17,25 +17,21 @@ class AppConfig(GenericConfig):
 
     @classmethod
     def print_help(cls):
-        os.system("")  # Hack to enable coloured output on Windows.
-
         output = trim_margin(f"""
-        |{header('Usage:')}
-        |  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FILES...)
-        |
-        |{header('Description:')}
-        |  By default, tries to guess the date the file was created and prepend it to the file name.
-        |
-        |{header('Options:')}
-        |  -h, --help:     Output this help information
-        |  -v, --verbose:  Output extra information
-        |  -o, --overwrite: Overwrite existing files
-        |  -d DATE:        A custom date to prepend
-        |      --hidden:    Also prepend dates to hidden files
+            |{header('Usage:')}
+            |  {os.path.basename(sys.argv[0])} [OPTIONS] (CWD or FILES...)
+            |
+            |{header('Description:')}
+            |  By default, tries to guess the date the file was created and prepend it to the file name.
+            |
+            |{header('Options:')}
+            |  -h, --help:     Output this help information
+            |  -v, --verbose:  Output extra information
+            |  -o, --overwrite: Overwrite existing files
+            |  -d DATE:        A custom date to prepend
+            |      --hidden:    Also prepend dates to hidden files
         """)
-
-        print(output)
-        exit(0)
+        GenericConfig._print_help(output)
 
     def parse_option(self, option: str) -> bool:
         if option == "-o" or option == "--overwrite":
